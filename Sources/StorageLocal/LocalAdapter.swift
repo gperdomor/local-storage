@@ -20,11 +20,11 @@ extension AdapterIdentifier {
 public class LocalAdapter: Adapter {
     /// A path to the root directory from which to read or write files.
     let directory: String
-    
+
     /// Value to set if the directory should be created if not exist.
     /// Default: `false`.
     let create: Bool
-    
+
     /// POSIX permission value to set when the directory is created.
     /// - note: Should be expressed as octal integer.
     /// Default: `0o755`.
@@ -111,7 +111,6 @@ public class LocalAdapter: Adapter {
         return "\(self.directory)/\(path)"
     }
 
-    
     /// Check if the passed path exists.
     ///
     /// - Parameter path: A path.
