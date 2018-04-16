@@ -60,14 +60,14 @@ public class LocalAdapter: Adapter {
         return FileManager.default.fileExists(atPath: _path)
     }
 
-    /// See Adapter.keys
-    public func keys() throws -> [String] {
+    /// See Adapter.list
+    public func list() throws -> [String] {
         try self.ensureDirectoryExists(directory: self.directory, create: self.create)
 
         do {
             return try FileManager.default.contentsOfDirectory(atPath: self.directory)
         } catch {
-            throw LocalAdapterError(identifier: "keys", reason: error.localizedDescription, source: .capture())
+            throw LocalAdapterError(identifier: "list", reason: error.localizedDescription, source: .capture())
         }
     }
 

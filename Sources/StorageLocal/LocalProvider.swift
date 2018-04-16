@@ -9,16 +9,16 @@
 import Service
 
 /// Registers and boots Local Adapter services.
-public final class FileSystemLocalProvider: Provider {
+public final class StorageLocalProvider: Provider {
     /// See Provider.repositoryName
-    public static let repositoryName = "filesystem-local"
+    public static let repositoryName = "storage-local"
 
     /// Create a new Local provider.
     public init() { }
 
     /// See Provider.register
     public func register(_ services: inout Services) throws {
-        try services.register(FileSystemProvider())
+        try services.register(StorageProvider())
     }
 
     /// See Provider.boot
