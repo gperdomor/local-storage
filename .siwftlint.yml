@@ -1,0 +1,32 @@
+included:
+  - Sources
+  - Tests
+
+nesting:
+  type_level: 2
+
+opt_in_rules:
+  - closure_end_indentation
+  - file_header
+  - force_unwrapping
+  - literal_expression_end_indentation
+
+force_cast: warning
+force_try: warning
+
+line_length: 100
+
+identifier_name:
+  excluded:
+    - id
+
+  file_header:
+    required_pattern: |
+                    \/\/
+                    \/\/  .*?\.swift
+                    \/\/  StorageKit
+                    \/\/
+                    \/\/  Created by .*? on \d{1,2}\/\d{1,2}\/\d{2}\.
+                    \/\/  Copyright © \d{4} Gustavo Perdomo\. All rights reserved\.
+
+reporter: "emoji"

@@ -1,3 +1,11 @@
+//
+//  StorageLocalTests.swift
+//  StorageLocal
+//
+//  Created by Gustavo Perdomo on 4/16/18.
+//  Copyright © 2018 Gustavo Perdomo. All rights reserved.
+//
+
 import XCTest
 @testable import StorageLocal
 
@@ -9,8 +17,7 @@ final class StorageLocalTests: XCTestCase {
         XCTAssertEqual(StorageLocal().text, "Hello, World!")
     }
 
-
     static var allTests = [
-        ("testExample", testExample),
+        ("testExample", testExample)
     ]
 }
