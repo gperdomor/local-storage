@@ -44,20 +44,20 @@ public class LocalAdapter: Adapter {
 
     /// See Adapter.read
     public func read(at path: String) throws -> Data? {
-        let _path = try self.compute(path: path)
-        return FileManager.default.contents(atPath: _path)
+        let computedPath = try self.compute(path: path)
+        return FileManager.default.contents(atPath: computedPath)
     }
 
     /// See Adapter.write
     public func write(content: Data, at path: String) throws -> Bool {
-        let _path = try self.compute(path: path)
-        return FileManager.default.createFile(atPath: _path, contents: content)
+        let computedPath = try self.compute(path: path)
+        return FileManager.default.createFile(atPath: computedPath, contents: content)
     }
 
     /// See Adapter.exists
     public func exists(at path: String) throws -> Bool {
-        let _path = try self.compute(path: path)
-        return FileManager.default.fileExists(atPath: _path)
+        let computedPath = try self.compute(path: path)
+        return FileManager.default.fileExists(atPath: computedPath)
     }
 
     /// See Adapter.list
@@ -73,10 +73,10 @@ public class LocalAdapter: Adapter {
 
     /// See Adapter.delete
     public  func delete(at path: String) throws {
-        let _path = try self.compute(path: path)
+        let computedPath = try self.compute(path: path)
 
         do {
-            try FileManager.default.removeItem(atPath: _path)
+            try FileManager.default.removeItem(atPath: computedPath)
         } catch {
             throw LocalAdapterError(identifier: "delete", reason: error.localizedDescription, source: .capture())
         }
@@ -84,11 +84,11 @@ public class LocalAdapter: Adapter {
 
     /// See Adapter.rename
     public func rename(at path: String, to target: String) throws {
-        let _source = try self.compute(path: path)
-        let _target = try self.compute(path: target)
+        let computedSource = try self.compute(path: path)
+        let computedTarget = try self.compute(path: target)
 
         do {
-            try FileManager.default.moveItem(atPath: _source, toPath: _target)
+            try FileManager.default.moveItem(atPath: computedSource, toPath: computedTarget)
         } catch {
             throw LocalAdapterError(identifier: "rename", reason: error.localizedDescription, source: .capture())
         }
@@ -96,8 +96,8 @@ public class LocalAdapter: Adapter {
 
     /// See Adapter.isDirectory
     public func isDirectory(at path: String) throws -> Bool {
-        let _path = try self.compute(path: path)
-        return self._isDirectory(at: _path)
+        let computedPath = try self.compute(path: path)
+        return self._isDirectory(at: computedPath)
     }
 
     /// Computes the path from the specified key.
@@ -130,7 +130,11 @@ public class LocalAdapter: Adapter {
     private func ensureDirectoryExists(directory path: String, create: Bool) throws {
         if !self._isDirectory(at: path) {
             if !create {
-                throw LocalAdapterError(identifier: "ensureDirectoryExists", reason: "The directory '\(path)' does not exist.", source: .capture())
+                throw LocalAdapterError(
+                    identifier: "ensureDirectoryExists",
+                    reason: "The directory '\(path)' does not exist.",
+                    source: .capture()
+                )
             }
         }
 
@@ -145,9 +149,17 @@ public class LocalAdapter: Adapter {
     /// - Throws: `LocalAdapterError`if the directory could not be created.
     private func create(directory path: String, mode: Int) throws {
         do {
-            try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true, attributes: [FileAttributeKey.posixPermissions: mode])
+            try FileManager.default.createDirectory(
+                atPath: path,
+                withIntermediateDirectories: true,
+                attributes: [FileAttributeKey.posixPermissions: mode]
+            )
         } catch {
-            throw LocalAdapterError(identifier: "create", reason: "The directory '\(path)' could not be created", source: .capture())
+            throw LocalAdapterError(
+                identifier: "create",
+                reason: "The directory '\(path)' could not be created",
+                source: .capture()
+            )
         }
     }
 }

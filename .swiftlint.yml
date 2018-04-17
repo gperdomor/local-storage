@@ -14,19 +14,19 @@ opt_in_rules:
 force_cast: warning
 force_try: warning
 
-line_length: 100
+line_length: 120
 
 identifier_name:
   excluded:
     - id
 
-  file_header:
-    required_pattern: |
-                    \/\/
-                    \/\/  .*?\.swift
-                    \/\/  StorageLocal
-                    \/\/
-                    \/\/  Created by .*? on \d{1,2}\/\d{1,2}\/\d{2}\.
-                    \/\/  Copyright © \d{4} Gustavo Perdomo\. All rights reserved\.
+file_header:
+  required_pattern: |
+                  \/\/
+                  \/\/  .*?\.swift
+                  \/\/  StorageLocal
+                  \/\/
+                  \/\/  Created by .*? on \d{1,2}\/\d{1,2}\/\d{2}\.
+                  \/\/  Copyright © \d{4} Gustavo Perdomo\. All rights reserved\.
 
 reporter: "emoji"
