@@ -9,6 +9,7 @@
 import Async
 import Foundation
 import StorageKit
+import Vapor
 
 extension AdapterIdentifier {
     /// The main Local adapter identifier.
@@ -20,9 +21,6 @@ extension AdapterIdentifier {
 /// `LocalAdapter` provides an interface that allows handle files
 /// in the local filesystem.
 public class LocalAdapter: Adapter {
-    /// The event loop to put futures on
-    private let eventLoop: EventLoop
-
     /// A path to the root directory from which to read or write files.
     private let directory: String
 
@@ -43,78 +41,81 @@ public class LocalAdapter: Adapter {
     ///   - uploadDirectory: A path to the root directory from which to read or write files.
     ///   - create: `true` to create the directory if not exists.  Default: `false`.
     ///   - mode: POSIX permission as octal integer. Default: `0o755`.
-    public init(on worker: Worker = EmbeddedEventLoop(), uploadDirectory: URL, create: Bool = false, mode: Int = 0o755) {
+    public init(uploadDirectory: URL, create: Bool = false, mode: Int = 0o755) {
         self.directory = "\(uploadDirectory.path)"
         self.create = create
         self.mode = mode
-        self.eventLoop = worker.eventLoop
     }
 
     /// See Adapter.read
-    public func read(at path: String) throws -> Data? {
+    public func read(at path: String, on container: Container) throws -> Future<Data?> {
         let computedPath = try self.compute(path: path)
-        return FileManager.default.contents(atPath: computedPath)
+
+        return Future.map(on: container) { FileManager.default.contents(atPath: computedPath) }
     }
 
     /// See Adapter.write
-    public func write(content: Data, at path: String) throws -> Future<StorageResult> {
+    public func write(content: Data, at path: String, on container: Container) throws -> Future<StorageResult> {
         let computedPath = try self.compute(path: path)
 
-        if try self.exists(at: computedPath) {
-            // throw file already exist
+        return try self.exists(at: computedPath, on: container).map(to: StorageResult.self) { exists in
+            if exists {
+                // throw file already exist
+            }
+
+            let success = FileManager.default.createFile(atPath: computedPath, contents: content)
+
+            return StorageResult(success: success, response: Response(using: container))
         }
-
-        let success = FileManager.default.createFile(atPath: computedPath, contents: content)
-
-        return Future.map(on: self.eventLoop) { StorageResult(success: success, response: nil) }
     }
 
     /// See Adapter.exists
-    public func exists(at path: String) throws -> Bool {
+    public func exists(at path: String, on container: Container) throws -> Future<Bool> {
         let computedPath = try self.compute(path: path)
-        return FileManager.default.fileExists(atPath: computedPath)
+        return Future.map(on: container) { FileManager.default.fileExists(atPath: computedPath) }
     }
 
     /// See Adapter.list
-    public func list() throws -> [String] {
+    public func list(on container: Container) throws -> Future<[String]> {
         try self.ensureDirectoryExists(directory: self.directory, create: self.create)
 
         do {
-            return try FileManager.default.contentsOfDirectory(atPath: self.directory)
+            let r =  try FileManager.default.contentsOfDirectory(atPath: self.directory)
+            return Future.map(on: container) { r }
         } catch {
             throw LocalAdapterError(identifier: "list", reason: error.localizedDescription, source: .capture())
         }
     }
 
     /// See Adapter.delete
-    public func delete(at path: String) throws -> Future<StorageResult> {
+    public func delete(at path: String, on container: Container) throws -> Future<StorageResult> {
         let computedPath = try self.compute(path: path)
 
         do {
             try FileManager.default.removeItem(atPath: computedPath)
-            return Future.map(on: self.eventLoop) { StorageResult(success: true, response: nil) }
+            return Future.map(on: container) { StorageResult(success: true, response: Response(using: container)) }
         } catch {
             throw LocalAdapterError(identifier: "delete", reason: error.localizedDescription, source: .capture())
         }
     }
 
     /// See Adapter.rename
-    public func rename(at path: String, to target: String) throws -> Future<StorageResult> {
+    public func rename(at path: String, to target: String, on container: Container) throws -> Future<StorageResult> {
         let computedSource = try self.compute(path: path)
         let computedTarget = try self.compute(path: target)
 
         do {
             try FileManager.default.moveItem(atPath: computedSource, toPath: computedTarget)
-            return Future.map(on: self.eventLoop) { StorageResult(success: true, response: nil) }
+            return Future.map(on: container) { StorageResult(success: true, response: Response(using: container)) }
         } catch {
             throw LocalAdapterError(identifier: "rename", reason: error.localizedDescription, source: .capture())
         }
     }
 
     /// See Adapter.isDirectory
-    public func isDirectory(at path: String) throws -> Bool {
+    public func isDirectory(at path: String, on container: Container) throws -> Future<Bool> {
         let computedPath = try self.compute(path: path)
-        return self._isDirectory(at: computedPath)
+        return Future.map(on: container) { self._isDirectory(at: computedPath) }
     }
 
     /// Computes the path from the specified key.
