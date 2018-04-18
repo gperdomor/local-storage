@@ -6,7 +6,9 @@
 //  Copyright © 2018 Gustavo Perdomo. All rights reserved.
 //
 
+import Async
 import Foundation
+import StorageKit
 
 extension AdapterIdentifier {
     /// The main Local adapter identifier.
@@ -49,9 +51,16 @@ public class LocalAdapter: Adapter {
     }
 
     /// See Adapter.write
-    public func write(content: Data, at path: String) throws -> Bool {
+    public func write(on worker: Worker, content: Data, at path: String) throws -> Future<StorageResult> {
         let computedPath = try self.compute(path: path)
-        return FileManager.default.createFile(atPath: computedPath, contents: content)
+
+        if try self.exists(at: computedPath) {
+            // throw file already exist
+        }
+
+        let success = FileManager.default.createFile(atPath: computedPath, contents: content)
+
+        return Future.map(on: worker) { StorageResult(success: success, response: nil) }
     }
 
     /// See Adapter.exists
@@ -72,23 +81,25 @@ public class LocalAdapter: Adapter {
     }
 
     /// See Adapter.delete
-    public  func delete(at path: String) throws {
+    public func delete(on worker: Worker, at path: String) throws -> Future<StorageResult> {
         let computedPath = try self.compute(path: path)
 
         do {
             try FileManager.default.removeItem(atPath: computedPath)
+            return Future.map(on: worker) { StorageResult(success: true, response: nil) }
         } catch {
             throw LocalAdapterError(identifier: "delete", reason: error.localizedDescription, source: .capture())
         }
     }
 
     /// See Adapter.rename
-    public func rename(at path: String, to target: String) throws {
+    public func rename(on worker: Worker, at path: String, to target: String) throws -> Future<StorageResult> {
         let computedSource = try self.compute(path: path)
         let computedTarget = try self.compute(path: target)
 
         do {
             try FileManager.default.moveItem(atPath: computedSource, toPath: computedTarget)
+            return Future.map(on: worker) { StorageResult(success: true, response: nil) }
         } catch {
             throw LocalAdapterError(identifier: "rename", reason: error.localizedDescription, source: .capture())
         }
