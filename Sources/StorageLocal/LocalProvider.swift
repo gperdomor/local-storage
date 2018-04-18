@@ -18,7 +18,7 @@ public final class StorageLocalProvider: Provider {
 
     /// See Provider.register
     public func register(_ services: inout Services) throws {
-        try services.register(StorageProvider())
+        try services.register(StorageKitProvider())
     }
 
     /// See Provider.boot

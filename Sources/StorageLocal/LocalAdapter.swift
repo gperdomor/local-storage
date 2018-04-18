@@ -20,28 +20,34 @@ extension AdapterIdentifier {
 /// `LocalAdapter` provides an interface that allows handle files
 /// in the local filesystem.
 public class LocalAdapter: Adapter {
+    /// The event loop to put futures on
+    private let eventLoop: EventLoop
+
     /// A path to the root directory from which to read or write files.
-    let directory: String
+    private let directory: String
 
     /// Value to set if the directory should be created if not exist.
     /// Default: `false`.
-    let create: Bool
+    private let create: Bool
 
     /// POSIX permission value to set when the directory is created.
     /// - note: Should be expressed as octal integer.
     /// Default: `0o755`.
-    let mode: Int
+    private let mode: Int
 
     /// Create a new Local adapter.
     ///
     /// - Parameters:
+    ///   - worker: the EventLoop worker
+    ///   - uploadDirectory: A path to the root directory from which to read or write files.
     ///   - uploadDirectory: A path to the root directory from which to read or write files.
     ///   - create: `true` to create the directory if not exists.  Default: `false`.
     ///   - mode: POSIX permission as octal integer. Default: `0o755`.
-    public init(uploadDirectory: URL, create: Bool = false, mode: Int = 0o755) {
+    public init(on worker: Worker = EmbeddedEventLoop(), uploadDirectory: URL, create: Bool = false, mode: Int = 0o755) {
         self.directory = "\(uploadDirectory.path)"
         self.create = create
         self.mode = mode
+        self.eventLoop = worker.eventLoop
     }
 
     /// See Adapter.read
@@ -51,7 +57,7 @@ public class LocalAdapter: Adapter {
     }
 
     /// See Adapter.write
-    public func write(on worker: Worker, content: Data, at path: String) throws -> Future<StorageResult> {
+    public func write(content: Data, at path: String) throws -> Future<StorageResult> {
         let computedPath = try self.compute(path: path)
 
         if try self.exists(at: computedPath) {
@@ -60,7 +66,7 @@ public class LocalAdapter: Adapter {
 
         let success = FileManager.default.createFile(atPath: computedPath, contents: content)
 
-        return Future.map(on: worker) { StorageResult(success: success, response: nil) }
+        return Future.map(on: self.eventLoop) { StorageResult(success: success, response: nil) }
     }
 
     /// See Adapter.exists
@@ -81,25 +87,25 @@ public class LocalAdapter: Adapter {
     }
 
     /// See Adapter.delete
-    public func delete(on worker: Worker, at path: String) throws -> Future<StorageResult> {
+    public func delete(at path: String) throws -> Future<StorageResult> {
         let computedPath = try self.compute(path: path)
 
         do {
             try FileManager.default.removeItem(atPath: computedPath)
-            return Future.map(on: worker) { StorageResult(success: true, response: nil) }
+            return Future.map(on: self.eventLoop) { StorageResult(success: true, response: nil) }
         } catch {
             throw LocalAdapterError(identifier: "delete", reason: error.localizedDescription, source: .capture())
         }
     }
 
     /// See Adapter.rename
-    public func rename(on worker: Worker, at path: String, to target: String) throws -> Future<StorageResult> {
+    public func rename(at path: String, to target: String) throws -> Future<StorageResult> {
         let computedSource = try self.compute(path: path)
         let computedTarget = try self.compute(path: target)
 
         do {
             try FileManager.default.moveItem(atPath: computedSource, toPath: computedTarget)
-            return Future.map(on: worker) { StorageResult(success: true, response: nil) }
+            return Future.map(on: self.eventLoop) { StorageResult(success: true, response: nil) }
         } catch {
             throw LocalAdapterError(identifier: "rename", reason: error.localizedDescription, source: .capture())
         }
