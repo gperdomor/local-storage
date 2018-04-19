@@ -1,6 +1,6 @@
 //
 //  LocalProvider.swift
-//  StorageLocal
+//  LocalStorage
 //
 //  Created by Gustavo Perdomo on 4/16/18.
 //  Copyright © 2018 Gustavo Perdomo. All rights reserved.
@@ -9,9 +9,9 @@
 import Service
 
 /// Registers and boots Local Adapter services.
-public final class StorageLocalProvider: Provider {
+public final class LocalStorageProvider: Provider {
     /// See Provider.repositoryName
-    public static let repositoryName = "storage-local"
+    public static let repositoryName = "local-storage"
 
     /// Create a new Local provider.
     public init() { }

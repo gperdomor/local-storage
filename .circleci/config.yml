@@ -7,6 +7,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install libressl
+          command: brew install libressl
+      - run:
           name: Compile code
           command: swift build
       - run: 
@@ -14,7 +17,7 @@ jobs:
           command: swift package generate-xcodeproj
       - run:
           name: Run unit tests with xcodebuild and coverage
-          command: xcodebuild -scheme StorageLocal-Package -enableCodeCoverage YES test
+          command: xcodebuild -scheme LocalStorage-Package -enableCodeCoverage YES test
       - run:
           name: Run Codecov tool
           command: bash <(curl -s https://codecov.io/bash)
