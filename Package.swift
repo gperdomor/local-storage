@@ -3,16 +3,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "StorageLocal",
+    name: "LocalStorage",
     products: [
-        .library(name: "StorageLocal", targets: ["StorageLocal"])
+        .library(name: "LocalStorage", targets: ["LocalStorage"])
     ],
     dependencies: [
         // 🗄 Storage abstraction framework.
-        .package(url: "https://github.com/gperdomor/storage-kit.git", .branch("beta")),
+        .package(url: "https://github.com/gperdomor/storage-kit.git", from: "0.1.0"),
     ],
     targets: [
-        .target(name: "StorageLocal", dependencies: ["StorageKit"]),
-        .testTarget(name: "StorageLocalTests", dependencies: ["StorageLocal"])
+        .target(name: "LocalStorage", dependencies: ["StorageKit"]),
+        .testTarget(name: "LocalStorageTests", dependencies: ["LocalStorage"])
     ]
 )
