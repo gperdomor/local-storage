@@ -26,11 +26,8 @@ final class LocalAdapterTests: XCTestCase {
     override func setUp() {
         super.setUp()
         app = try! Application.testable()
-        #if os(macOS)
-            rootDir = fm.temporaryDirectory.appendingPathComponent(TEST_DIRECTORY)
-        #else
-            rootDir = fm.homeDirectoryForCurrentUser.appendingPathComponent(TEST_DIRECTORY)
-        #endif
+        rootDir = fm.temporaryDirectory.appendingPathComponent(TEST_DIRECTORY)
+
         adapter = try! LocalAdapter(rootDirectory: rootDir, create: true)
 
         // create some buckets
@@ -203,13 +200,13 @@ final class LocalAdapterTests: XCTestCase {
     }
 
     func testLinuxTestSuiteIncludesAllTests() throws {
-        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-        let thisClass = type(of: self)
-        let linuxCount = thisClass.allTests.count
-        let darwinCount = Int(thisClass.defaultTestSuite.testCaseCount)
+       #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+       let thisClass = type(of: self)
+       let linuxCount = thisClass.allTests.count
+       let darwinCount = Int(thisClass.defaultTestSuite.testCaseCount)
 
-        XCTAssertEqual(linuxCount, darwinCount, "\(darwinCount - linuxCount) tests are missing from allTests")
-        #endif
+       XCTAssertEqual(linuxCount, darwinCount, "\(darwinCount - linuxCount) tests are missing from allTests")
+       #endif
     }
 
     static var allTests = [

@@ -50,7 +50,7 @@ public class LocalAdapter: Adapter {
     // MARK: Bucket Operations
 
     /// See `Adapter.create`
-    public func create(bucket: String, metadata: Codable? = nil, on container: Container) throws -> Future<Void> {
+    public func create(bucket: String, metadata: StorageMetadata? = nil, on container: Container) throws -> Future<Void> {
         if try self.get(bucket: bucket) != nil {
             throw LocalAdapterError(identifier: "create bucket", reason: "Bucket '\(bucket)' already exists.", source: .capture())
         }
@@ -105,14 +105,15 @@ public class LocalAdapter: Adapter {
             prefix: nil,
             size: data.count,
             etag: try MD5.hash(data).hexEncodedString(),
-            lastModified: Date()
+            lastModified: Date(),
+            url: nil
         )
 
         return Future.map(on: container) { objectInfo }
     }
 
     /// See `Adapter.create`
-    public func create(object: String, in bucket: String, with content: Data, metadata: Codable? = nil, on container: Container) throws -> Future<ObjectInfo> {
+    public func create(object: String, in bucket: String, with content: Data, metadata: StorageMetadata? = nil, on container: Container) throws -> Future<ObjectInfo> {
         let path = self.compute(bucket: bucket, object: object)
 
         fm.createFile(atPath: path, contents: content)
@@ -122,7 +123,8 @@ public class LocalAdapter: Adapter {
             prefix: nil,
             size: content.count,
             etag: try MD5.hash(content).hexEncodedString(),
-            lastModified: Date()
+            lastModified: Date(),
+            url: nil
         )
 
         return Future.map(on: container) { objectInfo }
@@ -259,7 +261,8 @@ public class LocalAdapter: Adapter {
                 prefix: prefix,
                 size: values.fileSize,
                 etag: try MD5.hash(self.get(object: name, in: bucket)).hexEncodedString(),
-                lastModified: values.creationDate
+                lastModified: values.creationDate,
+                url: nil
             )
         }
 
