@@ -46,121 +46,9 @@ public class LocalAdapter: Adapter {
             try self.create(directory: self.directory, mode: mode)
         }
     }
+}
 
-    // MARK: Bucket Operations
-
-    /// See `Adapter.create`
-    public func create(bucket: String, metadata: StorageMetadata? = nil, on container: Container) throws -> Future<Void> {
-        if try self.get(bucket: bucket) != nil {
-            throw LocalAdapterError(identifier: "create bucket", reason: "Bucket '\(bucket)' already exists.", source: .capture())
-        }
-
-        let path = self.compute(bucket: bucket)
-
-        try self.create(directory: path, mode: mode)
-
-        return Future.map(on: container) { () }
-    }
-
-    /// See `Adapter.delete`
-    public func delete(bucket: String, on container: Container) throws -> Future<Void> {
-        let path = self.compute(bucket: bucket)
-
-        guard try fm.contentsOfDirectory(atPath: path).isEmpty else {
-            throw LocalAdapterError(identifier: "delete bucket", reason: "Bucket '\(bucket)' is not empty.", source: .capture())
-        }
-
-        try self.delete(directory: path)
-
-        return Future.map(on: container) { () }
-    }
-
-    /// See `Adapter.get`
-    public func get(bucket: String, on container: Container) throws -> Future<BucketInfo?> {
-        let bucketInfo = try self.get(bucket: bucket)
-
-        return Future.map(on: container) { bucketInfo }
-    }
-
-    /// See `Adapter.list`
-    public func list(on container: Container) throws -> Future<[BucketInfo]> {
-        let buckets = try self.list()
-
-        return Future.map(on: container) { buckets }
-    }
-
-    // MARK: Object Operations
-
-    /// See `Adapter.copy`
-    public func copy(object sourceObj: String, from sourceBucket: String, as targetObj: String, to targetBucket: String, on container: Container) throws -> Future<ObjectInfo> {
-        let source = self.compute(bucket: sourceBucket, object: sourceObj)
-        let target = self.compute(bucket: targetBucket, object: targetObj)
-
-        try fm.copyItem(atPath: source, toPath: target)
-
-        let data = try self.get(object: targetObj, in: targetBucket)
-
-        let objectInfo = ObjectInfo(
-            name: targetObj,
-            prefix: nil,
-            size: data.count,
-            etag: try MD5.hash(data).hexEncodedString(),
-            lastModified: Date(),
-            url: nil
-        )
-
-        return Future.map(on: container) { objectInfo }
-    }
-
-    /// See `Adapter.create`
-    public func create(object: String, in bucket: String, with content: Data, metadata: StorageMetadata? = nil, on container: Container) throws -> Future<ObjectInfo> {
-        let path = self.compute(bucket: bucket, object: object)
-
-        fm.createFile(atPath: path, contents: content)
-
-        let objectInfo = ObjectInfo(
-            name: object,
-            prefix: nil,
-            size: content.count,
-            etag: try MD5.hash(content).hexEncodedString(),
-            lastModified: Date(),
-            url: nil
-        )
-
-        return Future.map(on: container) { objectInfo }
-    }
-
-    /// See `Adapter.delete`
-    public func delete(object: String, in bucket: String, on container: Container) throws -> Future<Void> {
-        let path = self.compute(bucket: bucket, object: object)
-
-        try fm.removeItem(atPath: path)
-
-        return Future.map(on: container) { () }
-    }
-
-    /// See `Adapter.get`
-    public func get(object: String, in bucket: String, on container: Container) throws -> Future<Data> {
-        let object = try self.get(object: object, in: bucket)
-
-        return Future.map(on: container) { object }
-    }
-
-    /// See `Adapter.listObjects`
-    public func listObjects(in bucket: String, prefix: String?, on container: Container) throws -> Future<[ObjectInfo]> {
-        let objects = try self.listObjects(in: bucket, prefix: prefix)
-
-        return Future.map(on: container) { objects }
-    }
-
-    // MARK: Helpers
-
-    /// Build the path for the specified bucket and object.
-    ///
-    /// - Parameters:
-    ///   - bucket: name of the bucket.
-    ///   - object: name of the object.
-    /// - Returns: The path
+extension LocalAdapter {
     internal func compute(bucket: String, object: String? = nil) -> String {
         var composed = "\(self.directory)/\(bucket)"
 
@@ -206,6 +94,16 @@ public class LocalAdapter: Adapter {
         })
     }
 
+    internal func get(object: String, in bucket: String) throws -> Data {
+        let path = self.compute(bucket: bucket, object: object)
+
+        guard let data = fm.contents(atPath: path) else {
+            throw LocalAdapterError(identifier: "get object", reason: "can't retrieve object.", source: .capture())
+        }
+
+        return data
+    }
+
     internal func list() throws -> [BucketInfo] {
         // FIX froce unwraping
         let url = URL(string: self.directory)!
@@ -223,16 +121,6 @@ public class LocalAdapter: Adapter {
         }
 
         return buckets
-    }
-
-    internal func get(object: String, in bucket: String) throws -> Data {
-        let path = self.compute(bucket: bucket, object: object)
-
-        guard let data = fm.contents(atPath: path) else {
-            throw LocalAdapterError(identifier: "get object", reason: "can't retrieve object.", source: .capture())
-        }
-
-        return data
     }
 
     internal func listObjects(in bucket: String, prefix: String? = nil) throws -> [ObjectInfo] {
@@ -268,14 +156,116 @@ public class LocalAdapter: Adapter {
 
         return objects
     }
+    
+    //    /// Verify if the path is a directory.
+    //    ///
+    //    /// - Parameter path: the path.
+    //    /// - Returns: `true` if the path exists and is a directory, `false` in other cases`.
+    //    internal func isDirectory(at path: String) -> Bool {
+    //        var isDirectory: ObjCBool = false
+    //        fm.fileExists(atPath: path, isDirectory: &isDirectory)
+    //        return isDirectory.boolValue
+    //    }
+    //}
+}
 
-//    /// Verify if the path is a directory.
-//    ///
-//    /// - Parameter path: the path.
-//    /// - Returns: `true` if the path exists and is a directory, `false` in other cases`.
-//    internal func isDirectory(at path: String) -> Bool {
-//        var isDirectory: ObjCBool = false
-//        fm.fileExists(atPath: path, isDirectory: &isDirectory)
-//        return isDirectory.boolValue
-//    }
+extension LocalAdapter {
+    /// See `copy`
+    public func copy(object: String, from bucket: String, as targetObj: String, to targetBucket: String, on container: Container) throws -> EventLoopFuture<ObjectInfo> {
+        let source = self.compute(bucket: bucket, object: object)
+        let target = self.compute(bucket: targetBucket, object: targetObj)
+
+        try self.fm.copyItem(atPath: source, toPath: target)
+
+        let data = try self.get(object: targetObj, in: targetBucket)
+
+        let objectInfo = ObjectInfo(
+            name: targetObj,
+            prefix: nil,
+            size: data.count,
+            etag: try MD5.hash(data).hexEncodedString(),
+            lastModified: Date(),
+            url: nil
+        )
+
+        return Future.map(on: container) { objectInfo }
+    }
+
+    /// See `Adapter.create`
+    public func create(object: String, in bucket: String, with content: Data, metadata: StorageMetadata?, on container: Container) throws -> EventLoopFuture<ObjectInfo> {
+        let path = self.compute(bucket: bucket, object: object)
+
+        self.fm.createFile(atPath: path, contents: content)
+
+        let objectInfo = ObjectInfo(
+            name: object,
+            prefix: nil,
+            size: content.count,
+            etag: try MD5.hash(content).hexEncodedString(),
+            lastModified: Date(),
+            url: nil
+        )
+
+        return Future.map(on: container) { objectInfo }
+    }
+
+    /// See `delete`
+    public func delete(object: String, in bucket: String, on container: Container) throws -> EventLoopFuture<Void> {
+        let path = self.compute(bucket: bucket, object: object)
+
+        try fm.removeItem(atPath: path)
+
+        return Future.map(on: container) { () }
+    }
+
+    public func get(object: String, in bucket: String, on container: Container) throws -> EventLoopFuture<Data> {
+        let data = try self.get(object: object, in: bucket)
+
+        return Future.map(on: container) { data }
+    }
+}
+
+extension LocalAdapter {
+    public func create(bucket: String, metadata: StorageMetadata?, on container: Container) throws -> EventLoopFuture<Void> {
+        if try self.get(bucket: bucket) != nil {
+            throw LocalAdapterError(identifier: "create bucket", reason: "Bucket '\(bucket)' already exists.", source: .capture())
+        }
+
+        let path = self.compute(bucket: bucket)
+
+        try self.create(directory: path, mode: mode)
+
+        return Future.map(on: container) { () }
+    }
+
+    public func delete(bucket: String, on container: Container) throws -> EventLoopFuture<Void> {
+        let path = self.compute(bucket: bucket)
+
+        guard try fm.contentsOfDirectory(atPath: path).isEmpty else {
+            throw LocalAdapterError(identifier: "delete bucket", reason: "Bucket '\(bucket)' is not empty.", source: .capture())
+        }
+
+        try self.delete(directory: path)
+
+        return Future.map(on: container) { () }
+    }
+
+    public func get(bucket: String, on container: Container) throws -> EventLoopFuture<BucketInfo?> {
+        let bucketInfo = try self.get(bucket: bucket)
+
+        return Future.map(on: container) { bucketInfo }
+    }
+
+    public func list(on container: Container) throws -> EventLoopFuture<[BucketInfo]> {
+        let buckets = try self.list()
+
+        return Future.map(on: container) { buckets }
+    }
+
+    /// See `Adapter.listObjects`
+    public func listObjects(in bucket: String, prefix: String?, on container: Container) throws -> EventLoopFuture<[ObjectInfo]> {
+        let objects = try self.listObjects(in: bucket, prefix: prefix)
+
+        return Future.map(on: container) { objects }
+    }
 }

@@ -60,13 +60,13 @@ final class LocalAdapterTests: XCTestCase {
         var path = rootDir.appendingPathComponent("create-1").path
 
         XCTAssertEqual(isDirectory(at: path), false)
-        _ = try adapter.create(bucket: "create-1", on: app)
+        _ = try adapter.create(bucket: "create-1", metadata: nil, on: app)
         XCTAssertEqual(isDirectory(at: path), true)
 
         path = rootDir.appendingPathComponent("create-2").path
 
         XCTAssertEqual(isDirectory(at: path), false)
-        _ = try adapter.create(bucket: "create-2", on: app)
+        _ = try adapter.create(bucket: "create-2", metadata: nil, on: app)
         XCTAssertEqual(isDirectory(at: path), true)
     }
 
@@ -155,7 +155,7 @@ final class LocalAdapterTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f1"))
 
         var data = Data()
-        var object = try adapter.create(object: "f1", in: "bucket-1", with: data, on: app).wait()
+        var object = try adapter.create(object: "f1", in: "bucket-1", with: data, metadata: nil, on: app).wait()
 
         XCTAssertTrue(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f1"))
         XCTAssertEqual(object.name, "f1")
@@ -164,7 +164,7 @@ final class LocalAdapterTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f2"))
 
         data = Data(count: 20)
-        object = try adapter.create(object: "f2", in: "bucket-1", with: data, on: app).wait()
+        object = try adapter.create(object: "f2", in: "bucket-1", with: data, metadata: nil, on: app).wait()
 
         XCTAssertTrue(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f2"))
         XCTAssertEqual(object.name, "f2")
