@@ -48,6 +48,10 @@ final class LocalAdapterTests: XCTestCase {
         try! fm.removeItem(at: rootDir)
     }
 
+    func testListHelper() throws {
+        try adapter.list()
+    }
+
     func testComputePath() throws {
         XCTAssertEqual(adapter.compute(bucket: "bucket-1", object: nil), "\(rootDir.path)/bucket-1")
         XCTAssertEqual(adapter.compute(bucket: "bucket-2", object: ""), "\(rootDir.path)/bucket-2")
@@ -200,17 +204,19 @@ final class LocalAdapterTests: XCTestCase {
     }
 
     func testLinuxTestSuiteIncludesAllTests() throws {
-       #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-       let thisClass = type(of: self)
-       let linuxCount = thisClass.allTests.count
-       let darwinCount = Int(thisClass.defaultTestSuite.testCaseCount)
+        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+        let thisClass = type(of: self)
+        let linuxCount = thisClass.allTests.count
+        let darwinCount = Int(thisClass.defaultTestSuite.testCaseCount)
 
-       XCTAssertEqual(linuxCount, darwinCount, "\(darwinCount - linuxCount) tests are missing from allTests")
-       #endif
+        XCTAssertEqual(linuxCount, darwinCount, "\(darwinCount - linuxCount) tests are missing from allTests")
+        #endif
     }
 
     static var allTests = [
         ("testLinuxTestSuiteIncludesAllTests", testLinuxTestSuiteIncludesAllTests),
+        // Helpers
+        ("testListHelper", testListHelper),
         ("testComputePath", testComputePath),
         ("testCreateBucket", testCreateBucket),
         ("testDeleteEmptyBucket", testDeleteEmptyBucket),
@@ -223,7 +229,7 @@ final class LocalAdapterTests: XCTestCase {
         ("testDeleteObject", testDeleteObject),
         ("testGetObject", testGetObject),
         ("testListObjects", testListObjects)
-        ]
+    ]
 }
 
 /// Verify if the path is a directory.

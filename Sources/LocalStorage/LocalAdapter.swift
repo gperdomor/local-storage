@@ -105,16 +105,21 @@ extension LocalAdapter {
     }
 
     internal func list() throws -> [BucketInfo] {
-        // FIX froce unwraping
-        let url = URL(string: self.directory)!
+        guard let url = self.directory.convertToURL() else {
+            throw LocalAdapterError(identifier: "list", reason: "unable to covert to URL", source: .capture())
+        }
 
-        let contents = try fm.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey, .creationDateKey], options: [.skipsSubdirectoryDescendants, .skipsHiddenFiles])
+        let contents = try fm.contentsOfDirectory(at: url, includingPropertiesForKeys: [], options: [.skipsSubdirectoryDescendants])
 
         let buckets: [BucketInfo] = try contents.compactMap {
-            let values = try $0.resourceValues(forKeys: [.isDirectoryKey, .creationDateKey])
+            let path = $0.path
+            let name = $0.lastPathComponent
 
-            if(values.isDirectory == true) {
-                return BucketInfo(name: $0.lastPathComponent, creationDate: values.creationDate)
+            print("\(path) - \(self.isDirectory(at: path))")
+
+            if !name.hasPrefix(".") && self.isDirectory(at: path) == true {
+                let attr = try fm.attributesOfItem(atPath: path)
+                return BucketInfo(name: name, creationDate: Date(rfc1123: attr[.creationDate] as? String ?? ""))
             }
 
             return nil
@@ -124,49 +129,45 @@ extension LocalAdapter {
     }
 
     internal func listObjects(in bucket: String, prefix: String? = nil) throws -> [ObjectInfo] {
-        // FIX froce unwraping
-        let path = self.compute(bucket: bucket)
+        guard let url = self.compute(bucket: bucket).convertToURL() else {
+            throw LocalAdapterError(identifier: "listObjects", reason: "unable to covert to URL", source: .capture())
+        }
 
-        let url = URL(string: path)!
+        let contents = try fm.contentsOfDirectory(at: url, includingPropertiesForKeys: [], options: [.skipsSubdirectoryDescendants])
         let prefix: String = prefix ?? ""
 
-        let contents = try fm.contentsOfDirectory(
-            at: url, includingPropertiesForKeys: [.isDirectoryKey, .creationDateKey, .fileSizeKey],
-            options: [.skipsSubdirectoryDescendants, .skipsHiddenFiles]
-        )
-
         let objects: [ObjectInfo] = try contents.compactMap {
-            let values = try $0.resourceValues(forKeys: [.isDirectoryKey, .creationDateKey, .fileSizeKey])
-
+            let path = $0.path
             let name = $0.lastPathComponent
 
-            if !name.hasPrefix(prefix) {
+            if !name.hasPrefix(".") && !name.hasPrefix(prefix) {
                 return nil
             }
+
+            let attr = try fm.attributesOfItem(atPath: path)
 
             return ObjectInfo(
                 name: name,
                 prefix: prefix,
-                size: values.fileSize,
+                size: attr[.size] as? Int,
                 etag: try MD5.hash(self.get(object: name, in: bucket)).hexEncodedString(),
-                lastModified: values.creationDate,
+                lastModified: Date(rfc1123: attr[.creationDate] as? String ?? ""),
                 url: nil
             )
         }
 
         return objects
     }
-    
-    //    /// Verify if the path is a directory.
-    //    ///
-    //    /// - Parameter path: the path.
-    //    /// - Returns: `true` if the path exists and is a directory, `false` in other cases`.
-    //    internal func isDirectory(at path: String) -> Bool {
-    //        var isDirectory: ObjCBool = false
-    //        fm.fileExists(atPath: path, isDirectory: &isDirectory)
-    //        return isDirectory.boolValue
-    //    }
-    //}
+
+    /// Verify if the path is a directory.
+    ///
+    /// - Parameter path: the path.
+    /// - Returns: `true` if the path exists and is a directory, `false` in other cases`.
+    internal func isDirectory(at path: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        fm.fileExists(atPath: path, isDirectory: &isDirectory)
+        return isDirectory.boolValue
+    }
 }
 
 extension LocalAdapter {

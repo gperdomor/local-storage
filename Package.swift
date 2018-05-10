@@ -9,7 +9,7 @@ let package = Package(
     ],
     dependencies: [
         // 🗄 Storage abstraction framework.
-        .package(url: "https://github.com/gperdomor/storage-kit.git", from: "0.2.1"),
+        .package(url: "https://github.com/gperdomor/storage-kit.git", from: "0.2.1")
     ],
     targets: [
         .target(name: "LocalStorage", dependencies: ["StorageKit"]),
