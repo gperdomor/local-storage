@@ -1,0 +1,68 @@
+version: 2
+
+jobs:
+  macos:
+    macos:
+      xcode: "9.3.0"
+    steps:
+      - checkout
+      - run:
+          name: Install libressl
+          command: brew install libressl
+      - run:
+          name: Compile code
+          command: swift build
+      - run: 
+          name: Generate Xcode project
+          command: swift package generate-xcodeproj
+      - run:
+          name: Run unit tests with xcodebuild and coverage
+          command: xcodebuild -scheme LocalStorage-Package -enableCodeCoverage YES test
+      - run:
+          name: Run Codecov tool
+          command: bash <(curl -s https://codecov.io/bash)
+      - run: 
+          name: Compile code with optimizations
+          command: swift build -c release
+  linux:
+    docker:
+      - image: codevapor/swift:4.1
+    steps:
+      - checkout
+      - run: 
+          name: Compile code
+          command: swift build
+      - run: 
+          name: Run unit tests
+          command: swift test
+      - run: 
+          name: Compile code with optimizations
+          command: swift build -c release
+
+  swiftlint:
+    docker:
+      - image: norionomura/swiftlint
+    steps:
+      - checkout
+      - run: swiftlint
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - swiftlint
+      - linux
+      - macos
+
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - linux
+      - macos
+      

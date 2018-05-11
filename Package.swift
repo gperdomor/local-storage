@@ -3,16 +3,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "StorageLocal",
+    name: "LocalStorage",
     products: [
-        .library(name: "storage-local", targets: ["StorageLocal"])
+        .library(name: "LocalStorage", targets: ["LocalStorage"])
     ],
     dependencies: [
+        // 🗄 Storage abstraction framework.
+        .package(url: "https://github.com/gperdomor/storage-kit.git", from: "0.2.1"),
+        .package(url: "https://github.com/JohnSundell/Files.git", from: "2.2.1")
     ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages which this package depends on.
-        .target(name: "StorageLocal", dependencies: []),
-        .testTarget(name: "StorageLocalTests", dependencies: ["StorageLocal"])
+        .target(name: "LocalStorage", dependencies: ["StorageKit", "Files"]),
+        .testTarget(name: "LocalStorageTests", dependencies: ["LocalStorage"])
     ]
 )
