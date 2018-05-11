@@ -9,6 +9,7 @@
 import XCTest
 import Crypto
 import Vapor
+import Files
 
 @testable import LocalStorage
 
@@ -20,167 +21,163 @@ let TEST_DATA = "TEST DATA"
 final class LocalAdapterTests: XCTestCase {
     var app: Application!
     var adapter: LocalAdapter!
-    var rootDir: URL!
+    var rootDir: Folder!
     var fm = FileManager.default
 
     override func setUp() {
         super.setUp()
         app = try! Application.testable()
-        rootDir = fm.temporaryDirectory.appendingPathComponent(TEST_DIRECTORY)
+        rootDir = try! Folder.temporary.createSubfolderIfNeeded(withName: TEST_DIRECTORY)
 
-        adapter = try! LocalAdapter(rootDirectory: rootDir, create: true)
+        adapter = try! LocalAdapter(rootDirectory: rootDir.path)
 
         // create some buckets
 
-        let path = rootDir.path
+        try! rootDir.createSubfolderIfNeeded(withName: "bucket-1")
+        try! rootDir.createSubfolderIfNeeded(withName: "bucket-2")
+        let b3 = try! rootDir.createSubfolderIfNeeded(withName: "bucket-3")
 
-        try! fm.createDirectory(atPath: "\(path)/bucket-1", withIntermediateDirectories: true)
-        try! fm.createDirectory(atPath: "\(path)/bucket-2", withIntermediateDirectories: true)
-        try! fm.createDirectory(atPath: "\(path)/bucket-3", withIntermediateDirectories: true)
-
-        fm.createFile(atPath: "\(path)/bucket-3/file.png", contents: TEST_DATA.convertToData())
-        fm.createFile(atPath: "\(path)/bucket-3/other-file.txt", contents: TEST_DATA.convertToData())
+        try! b3.createFile(named: "file.png", contents: TEST_DATA.convertToData())
+        try! b3.createFile(named: "other-file.txt", contents: TEST_DATA.convertToData())
     }
 
     override func tearDown() {
         super.tearDown()
 
-        try! fm.removeItem(at: rootDir)
-    }
-
-    func testListHelper() throws {
-        try adapter.list()
-    }
-
-    func testComputePath() throws {
-        XCTAssertEqual(adapter.compute(bucket: "bucket-1", object: nil), "\(rootDir.path)/bucket-1")
-        XCTAssertEqual(adapter.compute(bucket: "bucket-2", object: ""), "\(rootDir.path)/bucket-2")
-        XCTAssertEqual(adapter.compute(bucket: "bucket-3", object: "object1.png"), "\(rootDir.path)/bucket-3/object1.png")
+        try! rootDir.delete()
     }
 
     // MARK: Bucket tests
 
     func testCreateBucket() throws {
-        var path = rootDir.appendingPathComponent("create-1").path
+        var name = "create-1"
+        XCTAssertEqual(rootDir.containsSubfolder(named: name), false)
+        _ = try adapter.create(bucket: name, metadata: nil, on: app).wait()
+        XCTAssertEqual(rootDir.containsSubfolder(named: name), true)
 
-        XCTAssertEqual(isDirectory(at: path), false)
-        _ = try adapter.create(bucket: "create-1", metadata: nil, on: app)
-        XCTAssertEqual(isDirectory(at: path), true)
-
-        path = rootDir.appendingPathComponent("create-2").path
-
-        XCTAssertEqual(isDirectory(at: path), false)
-        _ = try adapter.create(bucket: "create-2", metadata: nil, on: app)
-        XCTAssertEqual(isDirectory(at: path), true)
+        name = "create-2"
+        XCTAssertEqual(rootDir.containsSubfolder(named: name), false)
+        _ = try adapter.create(bucket: name, metadata: nil, on: app).wait()
+        XCTAssertEqual(rootDir.containsSubfolder(named: name), true)
     }
 
     // MARK: Delete Bucket
 
     func testDeleteEmptyBucket() throws {
-        let path = rootDir.appendingPathComponent("bucket-1").path
+        let name = "bucket-1"
 
-        XCTAssertTrue(isDirectory(at: path))
-        _ = try adapter.delete(bucket: "bucket-1", on: app)
-        XCTAssertFalse(isDirectory(at: path))
+        XCTAssertTrue(rootDir.containsSubfolder(named: name))
+        _ = try adapter.delete(bucket: name, on: app).wait()
+        XCTAssertFalse(rootDir.containsSubfolder(named: name))
     }
 
     func testDeleteNonEmptyBucket() throws {
-        let path = rootDir.appendingPathComponent("bucket-3").path
+        let name = "bucket-3"
 
-        XCTAssertTrue(isDirectory(at: path))
-        XCTAssertThrowsError(try adapter.delete(bucket: "bucket-3", on: app))
-        XCTAssertTrue(isDirectory(at: path))
+        XCTAssertTrue(rootDir.containsSubfolder(named: name))
+        XCTAssertThrowsError(try adapter.delete(bucket: name, on: app).wait())
     }
 
     func testDeleteUnknowBucket() throws {
-        let path = rootDir.appendingPathComponent("non-existence-bucket").path
+        let name = "non-existence-bucket"
 
-        XCTAssertFalse(isDirectory(at: path))
-        XCTAssertThrowsError(try adapter.delete(bucket: "non-existence-bucket", on: app))
+        XCTAssertFalse(rootDir.containsSubfolder(named: name))
+        XCTAssertThrowsError(try adapter.delete(bucket: name, on: app).wait())
     }
 
     // MARK: Get Bucket
 
     func testGetBucket() throws {
-        var bucket = try adapter.get(bucket: "bucket-1")
+        var name = "bucket-1"
+        var bucket = try adapter.get(bucket: name, on: app).wait()
 
         XCTAssertNotNil(bucket)
-        XCTAssertTrue(bucket!.name == "bucket-1")
+        XCTAssertEqual(bucket!.name, name)
 
-        bucket = try adapter.get(bucket: "bucket-2")
+        name = "bucket-2"
+        bucket = try adapter.get(bucket: name, on: app).wait()
 
         XCTAssertNotNil(bucket)
-        XCTAssertTrue(bucket!.name == "bucket-2")
+        XCTAssertEqual(bucket!.name, name)
 
-        bucket = try adapter.get(bucket: "non-existing-bucket")
+        name = "bucket-3"
+        bucket = try adapter.get(bucket: name, on: app).wait()
 
-        XCTAssertNil(bucket)
+        XCTAssertNotNil(bucket)
+        XCTAssertEqual(bucket!.name, name)
 
-        let future = try adapter.get(bucket: "bucket-3", on: app)
-
-        XCTAssertNotNil(try future.wait())
-        XCTAssertEqual(try future.wait()!.name, "bucket-3")
+        name = "non-existing-bucket"
+        XCTAssertThrowsError(try adapter.get(bucket: name, on: app).wait())
     }
 
     func testListBuckets() throws {
-        let plain = try adapter.list()
+        let buckets = try adapter.list(on: app).wait()
 
-        XCTAssertEqual(plain.count, 3)
+        XCTAssertEqual(buckets.count, 3)
 
         ["bucket-1", "bucket-2", "bucket-3"].forEach { name in
-            XCTAssertTrue(plain.contains(where: { $0.name == name}))
-        }
-
-        let future = try adapter.list(on: app)
-
-        try ["bucket-1", "bucket-2", "bucket-3"].forEach { name in
-            XCTAssertTrue(try future.wait().contains(where: { $0.name == name}))
+            XCTAssertTrue(buckets.contains(where: { $0.name == name}))
         }
     }
 
     // MARK: Objects tests
 
     func testCopyObject() throws {
-        let targetPath = "\(rootDir.path)/bucket-2/file-copied.png"
+        let srcBucket = "bucket-3"
+        let srcObject = "file.png"
 
-        XCTAssertFalse(fm.fileExists(atPath: targetPath))
-        let future = try adapter.copy(object: "file.png", from: "bucket-3", as: "file-copied.png", to: "bucket-2", on: app)
-        XCTAssertTrue(fm.fileExists(atPath: targetPath))
+        let targetBucket = "bucket-2"
+        let targetObject = "file-copied.png"
 
-        XCTAssertEqual(try future.wait().name, "file-copied.png")
+        XCTAssertFalse(try rootDir.subfolder(named: targetBucket).containsFile(named: targetObject))
 
-        let sourceData = fm.contents(atPath: "\(rootDir.path)/bucket-3/file.png")
-        let targetData = fm.contents(atPath: targetPath)
+        let result = try adapter.copy(object: srcObject, from: srcBucket, as: targetObject, to: targetBucket, on: app).wait()
 
+        XCTAssertTrue(try rootDir.subfolder(named: targetBucket).containsFile(named: targetObject))
+
+        XCTAssertEqual(result.name, "file-copied.png")
+
+        let sourceData = try rootDir.subfolder(named: srcBucket).file(named: srcObject).read()
+        let targetData = try rootDir.subfolder(named: targetBucket).file(named: targetObject).read()
         XCTAssertEqual(sourceData, targetData)
     }
 
     func testCreateObject() throws {
-        XCTAssertFalse(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f1"))
-
+        let bucket = "bucket-1"
+        var object = "f1"
         var data = Data()
-        var object = try adapter.create(object: "f1", in: "bucket-1", with: data, metadata: nil, on: app).wait()
 
-        XCTAssertTrue(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f1"))
-        XCTAssertEqual(object.name, "f1")
-        XCTAssertEqual(object.etag, try MD5.hash(data).hexEncodedString())
+        XCTAssertFalse(try rootDir.subfolder(named: bucket).containsFile(named: object))
 
-        XCTAssertFalse(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f2"))
+        var result = try adapter.create(object: object, in: bucket, with: data, metadata: nil, on: app).wait()
 
+        XCTAssertTrue(try rootDir.subfolder(named: bucket).containsFile(named: object))
+
+        XCTAssertEqual(result.name, object)
+        XCTAssertEqual(result.etag, try MD5.hash(data).hexEncodedString())
+
+        object = "f2"
         data = Data(count: 20)
-        object = try adapter.create(object: "f2", in: "bucket-1", with: data, metadata: nil, on: app).wait()
 
-        XCTAssertTrue(fm.fileExists(atPath: "\(rootDir.path)/bucket-1/f2"))
-        XCTAssertEqual(object.name, "f2")
-        XCTAssertEqual(object.etag, try MD5.hash(data).hexEncodedString())
+        XCTAssertFalse(try rootDir.subfolder(named: bucket).containsFile(named: object))
+
+        result = try adapter.create(object: object, in: bucket, with: data, metadata: nil, on: app).wait()
+
+        XCTAssertTrue(try rootDir.subfolder(named: bucket).containsFile(named: object))
+
+        XCTAssertEqual(result.name, object)
+        XCTAssertEqual(result.etag, try MD5.hash(data).hexEncodedString())
     }
 
     func testDeleteObject() throws {
-        XCTAssertTrue(fm.fileExists(atPath: "\(rootDir.path)/bucket-3/file.png"))
+        let bucket = "bucket-3"
+        let object = "file.png"
 
-        try adapter.delete(object: "file.png", in: "bucket-3", on: app).wait()
+        XCTAssertTrue(try rootDir.subfolder(named: bucket).containsFile(named: object))
 
-        XCTAssertFalse(fm.fileExists(atPath: "\(rootDir.path)/bucket-3/file.png"))
+        try adapter.delete(object: object, in: bucket, on: app).wait()
+
+        XCTAssertFalse(try rootDir.subfolder(named: bucket).containsFile(named: object))
     }
 
     func testGetObject() throws {
@@ -190,17 +187,17 @@ final class LocalAdapterTests: XCTestCase {
     }
 
     func testListObjects() throws {
-        var list = try adapter.listObjects(in: "bucket-3", prefix: nil)
+        var objects = try adapter.listObjects(in: "bucket-3", prefix: nil, on: app).wait()
 
-        XCTAssertEqual(list.count, 2)
+        XCTAssertEqual(objects.count, 2)
 
         ["file.png", "other-file.txt"].forEach { name in
-            XCTAssertTrue(list.contains(where: { $0.name == name}))
+            XCTAssertTrue(objects.contains(where: { $0.name == name}))
         }
 
-        list = try adapter.listObjects(in: "bucket-3", prefix: "oth")
-        XCTAssertEqual(list.count, 1)
-        XCTAssertEqual(list[0].name, "other-file.txt")
+        objects = try adapter.listObjects(in: "bucket-3", prefix: "oth", on: app).wait()
+        XCTAssertEqual(objects.count, 1)
+        XCTAssertEqual(objects[0].name, "other-file.txt")
     }
 
     func testLinuxTestSuiteIncludesAllTests() throws {
@@ -215,9 +212,6 @@ final class LocalAdapterTests: XCTestCase {
 
     static var allTests = [
         ("testLinuxTestSuiteIncludesAllTests", testLinuxTestSuiteIncludesAllTests),
-        // Helpers
-        ("testListHelper", testListHelper),
-        ("testComputePath", testComputePath),
         ("testCreateBucket", testCreateBucket),
         ("testDeleteEmptyBucket", testDeleteEmptyBucket),
         ("testDeleteNonEmptyBucket", testDeleteNonEmptyBucket),
@@ -230,14 +224,4 @@ final class LocalAdapterTests: XCTestCase {
         ("testGetObject", testGetObject),
         ("testListObjects", testListObjects)
     ]
-}
-
-/// Verify if the path is a directory.
-///
-/// - Parameter path: the path.
-/// - Returns: `true` if the path exists and is a directory, `false` in other cases`.
-internal func isDirectory(at path: String) -> Bool {
-    var isDirectory: ObjCBool = false
-    FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
-    return isDirectory.boolValue
 }
